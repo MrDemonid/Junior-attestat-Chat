@@ -2,6 +2,7 @@ package org.junior.controller;
 
 import org.junior.Account;
 import org.junior.ConnectConfig;
+import org.junior.Message;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -12,9 +13,10 @@ public class Client {
 
     private Account account;
     private Socket socket;
-    private BufferedWriter writer;
-    private BufferedReader reader;
+    private ObjectOutputStream writer;
+    private ObjectInputStream reader;
     private Thread threadRead;
+
 
     public Client(Account account) {
         this.account = account;
@@ -28,7 +30,7 @@ public class Client {
             while (!socket.isClosed())
             {
                 String message = input.nextLine();
-                sendMessage(account.getName() + ": " + message);
+                sendMessage(message);
             }
 
         } catch (Exception e) {
@@ -37,9 +39,21 @@ public class Client {
     }
 
     public void sendMessage(String message) throws IOException {
-        writer.write(message);
-        writer.newLine();
-        writer.flush();
+        if (message != null && !message.isEmpty())
+        {
+            String to = null;
+            if (message.charAt(0) == '@')
+            {
+                // извлекаем имя адресата
+                to = getTargetName(message);
+                message = getBodyMessage(to, message);
+                System.out.println("Personal. to: " + to + ", message: '" + message + "'");
+            }
+            Message msg = new Message(account, to, message);
+            System.out.println("Send: " + msg);
+            writer.writeObject(msg);
+            writer.flush();
+        }
     }
 
 
@@ -47,11 +61,9 @@ public class Client {
     {
         try {
             socket = new Socket(InetAddress.getLocalHost(), ConnectConfig.getPort());
-            writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            sendMessage(account.getName());
-            sendMessage(account.getPassword());
-
+            writer = new ObjectOutputStream(socket.getOutputStream());
+            reader = new ObjectInputStream(socket.getInputStream());
+            sendMessage("connect");
             threadRead = new Thread(this::readerThread);
             threadRead.start();
         } catch (IOException e) {
@@ -79,10 +91,10 @@ public class Client {
         {
             while (!Thread.currentThread().isInterrupted() && !socket.isClosed())
             {
-                String message = reader.readLine();
+                Message message = (Message) reader.readObject();
                 if (message == null)
                     continue;
-                System.out.println("Client: " + message);
+                System.out.println("from server: " + message);
             }
         } catch (Exception e) {
         }
@@ -90,4 +102,21 @@ public class Client {
         close();
     }
 
+    private String getTargetName(String message)
+    {
+        StringBuilder name = new StringBuilder();
+        for (int i = 1; i < message.length(); i++)
+        {
+            char ch = message.charAt(i);
+            if (Character.isWhitespace(ch))
+                return name.toString();
+            name.append(ch);
+        }
+        return name.toString();
+    }
+
+    private String getBodyMessage(String name, String source)
+    {
+        return source.replaceFirst(name, source).trim();
+    }
 }

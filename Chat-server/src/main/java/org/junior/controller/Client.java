@@ -1,17 +1,21 @@
 package org.junior.controller;
 
 import org.junior.Account;
+import org.junior.Message;
 
 import java.io.*;
 import java.net.Socket;
 
+/**
+ * Соединение с клиентом. Работает в отдельном потоке.
+ */
 public class Client extends Thread {
 
     private Socket socket;
     private Account account;
 
-    private BufferedReader reader;
-    private BufferedWriter writer;
+    private ObjectInputStream reader;
+    private ObjectOutputStream writer;
 
     public Client(Socket socket) {
         this.socket = socket;
@@ -23,7 +27,7 @@ public class Client extends Thread {
         try {
             while (!isInterrupted() && !socket.isClosed())
             {
-                String message = reader.readLine();
+                Message message = (Message) reader.readObject();
                 if (message == null)
                     break;                                  // на том конце разорвали связь
                 ClientManager.getInstance().putMessageFromClient(message);
@@ -36,14 +40,15 @@ public class Client extends Thread {
     /**
      * Отправка сообщения клиенту
      */
-    public void sendMessage(String message)
+    public void sendMessage(Message message)
     {
+        System.out.println("Client.sendMessage(): " + message);
         try {
-            writer.write(message);
-            writer.newLine();
+            writer.writeObject(message);
             writer.flush();
         } catch (Exception e)
         {
+            System.out.println("Client: sendMessage() error: " + e.getMessage());
             ClientManager.getInstance().removeUser(this);
         }
     }
@@ -66,15 +71,17 @@ public class Client extends Thread {
     private Account init()
     {
         try {
-            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-
-            String name = reader.readLine();
-            String password = reader.readLine();
-            return new Account(name, password, "127.0.0.1", "");
-
+            reader = new ObjectInputStream(socket.getInputStream());
+            writer = new ObjectOutputStream(socket.getOutputStream());
+            Message msg = (Message) reader.readObject();
+            if (msg.getMessage().equalsIgnoreCase("connect"))
+            {
+                return new Account(msg.getAuthorName(), msg.getAuthorPassword(), "", "");
+            }
+            throw new IOException("Unexpected body connection message!");
         } catch (Exception e)
         {
+            System.out.println("Client error! " + e.getMessage());
             ClientManager.getInstance().removeUser(this);
         }
         return null;

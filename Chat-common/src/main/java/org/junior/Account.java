@@ -1,6 +1,8 @@
 package org.junior;
 
-public class Account {
+import java.io.Serializable;
+
+public class Account implements Serializable {
     private String name;
     private String ip;
     private String port;
@@ -43,5 +45,15 @@ public class Account {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    @Override
+    public String toString() {
+        return "Account{" +
+                "name='" + name + '\'' +
+                ", password='" + password + '\'' +
+                ", ip='" + ip + '\'' +
+                ", port='" + port + '\'' +
+                '}';
     }
 }

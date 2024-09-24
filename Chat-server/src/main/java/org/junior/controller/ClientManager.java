@@ -1,5 +1,8 @@
 package org.junior.controller;
 
+import org.junior.Account;
+import org.junior.Message;
+
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,8 +22,7 @@ public class ClientManager {
 
     private final List<Client> clients = new ArrayList<>();
 
-    private ArrayBlockingQueue<String> fromClients = new ArrayBlockingQueue<>(1000);
-    private ArrayBlockingQueue<String> toClients = new ArrayBlockingQueue<>(1000);
+    private ArrayBlockingQueue<Message> fromClients = new ArrayBlockingQueue<>(1000);
 
 
     private ClientManager() {}
@@ -34,7 +36,7 @@ public class ClientManager {
      * Блокирующая потокобезопасная функция выборки сообщений от клиентов
      * @return
      */
-    public String getMessageFromClient() throws InterruptedException {
+    public Message getMessageFromClient() throws InterruptedException {
         return fromClients.take();
     }
 
@@ -42,11 +44,11 @@ public class ClientManager {
      * Потокобезопасное помещение сообщения от клиента в очередь
      * @return true - если сообщение удалось поместить в очередь, false - в случае переполненной очереди
      */
-    public boolean putMessageFromClient(String message) {
+    public boolean putMessageFromClient(Message message) {
         return fromClients.offer(message);
     }
 
-    public void broadcastMessage(String message)
+    public void broadcastMessage(Message message)
     {
         clients.forEach(e -> e.sendMessage(message));
     }
@@ -59,13 +61,13 @@ public class ClientManager {
         boolean found = clients.stream().anyMatch(e -> e.getSocket().equals(socket));
         if (!found)
         {
+            Client client = new Client(socket);
             synchronized (clients) {
-                Client client = new Client(socket);
-                client.start();
                 clients.add(client);
             }
+            client.start();
             // оповещаем сервер о новом подключении
-            putMessageFromClient("Connect new user");
+            putMessageFromClient(new Message(client.getAccount(), null, "присоединился к нам"));
         }
     }
 
@@ -77,9 +79,9 @@ public class ClientManager {
         synchronized (clients) {
             if (clients.remove(client))
             {
-                String name = client.getAccount().getName();
+                Account cl = client.getAccount();
                 client.close();
-                putMessageFromClient("User " + name + " покинул нас!");
+                putMessageFromClient(new Message(cl, null, "покинул нас!"));
             }
         }
     }

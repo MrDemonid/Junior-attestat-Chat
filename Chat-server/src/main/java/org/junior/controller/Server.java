@@ -1,6 +1,7 @@
 package org.junior.controller;
 
 import org.junior.ConnectConfig;
+import org.junior.Message;
 import org.junior.view.View;
 
 import java.util.ArrayList;
@@ -71,9 +72,10 @@ public class Server {
         try {
             while (!Thread.currentThread().isInterrupted())
             {
-                String message = ClientManager.getInstance().getMessageFromClient();
-                System.out.println("Server: get message: " + message);
-                ClientManager.getInstance().broadcastMessage("[Server to] " + message);
+                Message message = ClientManager.getInstance().getMessageFromClient();
+                System.out.println("Get: " + message);
+                message.setMessage("[Server resend] " + message.getMessage());
+                ClientManager.getInstance().broadcastMessage(message);
             }
 
         } catch (InterruptedException e) {
