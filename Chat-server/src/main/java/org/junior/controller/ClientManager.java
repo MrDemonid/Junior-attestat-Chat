@@ -45,12 +45,27 @@ public class ClientManager {
      * @return true - если сообщение удалось поместить в очередь, false - в случае переполненной очереди
      */
     public boolean putMessageFromClient(Message message) {
+        System.out.println("- put message: " + message);
         return fromClients.offer(message);
     }
 
     public void broadcastMessage(Message message)
     {
-        clients.forEach(e -> e.sendMessage(message));
+        clients.forEach(e -> {
+            if (!e.getAccount().getName().equals(message.getAuthorName()))
+                e.sendMessage(message);
+        });
+    }
+
+    public void resendPrivateMessage(Message message)
+    {
+        for (Client client : clients) {
+            if (client.getAccount().getName().equals(message.getTargetName()))
+            {
+                client.sendMessage(message);
+                break;
+            }
+        }
     }
 
     /**
@@ -72,15 +87,15 @@ public class ClientManager {
     }
 
     /**
-     * Удаляет пользователя и завершает поток
+     * Удаляет клиента из списка
      */
-    public void removeUser(Client client)
+    public void unregisterUser(Client client)
     {
         synchronized (clients) {
             if (clients.remove(client))
             {
                 Account cl = client.getAccount();
-                client.close();
+                System.out.println("unregister " + cl);
                 putMessageFromClient(new Message(cl, null, "покинул нас!"));
             }
         }
@@ -88,13 +103,17 @@ public class ClientManager {
 
     public void removeAllUsers()
     {
+        System.out.println("ClientManager.removeAllUser()");
         synchronized (clients) {
             while (!clients.isEmpty())
             {
                 Client client = clients.removeLast();
+                System.out.println("  - remove: " + client);
                 client.close();
             }
         }
+        fromClients.clear();
+        System.out.println("ClientManager.removeAllUser() done!");
     }
 
 }

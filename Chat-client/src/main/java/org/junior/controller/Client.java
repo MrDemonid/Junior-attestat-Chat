@@ -2,7 +2,12 @@ package org.junior.controller;
 
 import org.junior.Account;
 import org.junior.ConnectConfig;
+import org.junior.ConnectStatus;
 import org.junior.Message;
+import org.junior.view.View;
+import org.junior.view.listeners.DisconnectListener;
+import org.junior.view.listeners.LoginListener;
+import org.junior.view.listeners.SendMessageListener;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -17,10 +22,41 @@ public class Client {
     private ObjectInputStream reader;
     private Thread threadRead;
 
+    View view;
+    ConnectStatus connectStatus;
 
-    public Client(Account account) {
+
+    public Client(Account account, View view) {
         this.account = account;
+        connectStatus = ConnectStatus.DISCONNECTED;
+        view.setAccount(account);
+        setListeners();
+
         connect(account);
+    }
+
+    /**
+     * Регистрация слушателей от View
+     */
+    private void setListeners()
+    {
+        view.addListener(LoginListener.class, event -> connectToServer());
+//        view.addListener(SendMessageListener.class, event -> sendMessage(event.getMessage()));
+        view.addListener(DisconnectListener.class, event -> disconnectFromUser());
+    }
+
+    /**
+     * Коннектимся к серверу
+     */
+    private void connectToServer()
+    {
+    }
+
+    /**
+     * Пользователь сам прерывает сеанс
+     */
+    private void disconnectFromUser()
+    {
     }
 
     public void run()
@@ -74,7 +110,6 @@ public class Client {
 
 
     private void close() {
-        System.out.println("Client: close()");
         try {
             if (socket != null)
                 socket.close();
@@ -82,7 +117,10 @@ public class Client {
                 writer.close();
             if (reader != null)
                 reader.close();
-        } catch(IOException e){}
+        } catch(IOException e){
+            System.out.println("close(): " + e.getMessage());
+        }
+        System.out.println("Client: close()");
     }
 
     private void readerThread()
@@ -117,6 +155,6 @@ public class Client {
 
     private String getBodyMessage(String name, String source)
     {
-        return source.replaceFirst(name, source).trim();
+        return source.replaceFirst("@" + name, "").trim();
     }
 }

@@ -28,13 +28,16 @@ public class Client extends Thread {
             while (!isInterrupted() && !socket.isClosed())
             {
                 Message message = (Message) reader.readObject();
-                if (message == null)
+                if (message == null || message.getMessage().isEmpty())
                     break;                                  // на том конце разорвали связь
                 ClientManager.getInstance().putMessageFromClient(message);
             }
         } catch (Exception ignored) {
+            System.out.println("Client.run(): " + ignored.getMessage());
         }
-        ClientManager.getInstance().removeUser(this);
+        System.out.println("Client.run() done!");
+        ClientManager.getInstance().unregisterUser(this);
+        closeResource();
     }
 
     /**
@@ -49,23 +52,31 @@ public class Client extends Thread {
         } catch (Exception e)
         {
             System.out.println("Client: sendMessage() error: " + e.getMessage());
-            ClientManager.getInstance().removeUser(this);
+            ClientManager.getInstance().unregisterUser(this);
+            closeResource();
         }
+    }
+
+
+
+    public void closeResource()
+    {
+        try {
+            if (socket != null && !socket.isClosed())
+                socket.close();
+            if (reader != null)
+                reader.close();
+            if (writer != null)
+                writer.close();
+        } catch (IOException ignored) {}
+        System.out.println("Client.closeResource()");
     }
 
     public void close()
     {
         interrupt();
-        try {
-            if (reader != null)
-                reader.close();
-            if (writer != null)
-                writer.close();
-
-            if (!socket.isClosed())
-                socket.close();
-            join();     // теперь то точно дождемся выхода из основного цикла
-        } catch (InterruptedException | IOException ignored) {}
+        closeResource();
+        System.out.println("Client.close()");
     }
 
     private Account init()
@@ -82,7 +93,8 @@ public class Client extends Thread {
         } catch (Exception e)
         {
             System.out.println("Client error! " + e.getMessage());
-            ClientManager.getInstance().removeUser(this);
+            ClientManager.getInstance().unregisterUser(this);
+            closeResource();
         }
         return null;
     }

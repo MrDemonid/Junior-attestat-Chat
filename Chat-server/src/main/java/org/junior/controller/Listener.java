@@ -43,7 +43,10 @@ public class Listener extends Thread {
             closeSocket();
             if (this.isAlive())
                 join();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            System.out.println("Listener.close(): " + ignored.getMessage());
+        }
+        System.out.println("Listener.close()");
     }
 
     private void closeSocket()
