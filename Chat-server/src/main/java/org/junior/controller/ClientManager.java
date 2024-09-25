@@ -15,14 +15,14 @@ import java.util.concurrent.ArrayBlockingQueue;
  * Хотя это скорее подстраховка на случай ввода слушателей для
  * нескольких портов.
  * (кроме удаления, которое могут запросить несколько пользователей сразу).
+ * Реализован как синглтон.
  */
 public class ClientManager {
 
     private static final ClientManager instance = new ClientManager();
 
     private final List<Client> clients = new ArrayList<>();
-
-    private ArrayBlockingQueue<Message> fromClients = new ArrayBlockingQueue<>(1000);
+    private final ArrayBlockingQueue<Message> fromClients = new ArrayBlockingQueue<>(1000);
 
 
     private ClientManager() {}
@@ -45,10 +45,12 @@ public class ClientManager {
      * @return true - если сообщение удалось поместить в очередь, false - в случае переполненной очереди
      */
     public boolean putMessageFromClient(Message message) {
-        System.out.println("- put message: " + message);
         return fromClients.offer(message);
     }
 
+    /**
+     * Рассылка сообщения всем подключенным клиентам, кроме автора сообщения
+     */
     public void broadcastMessage(Message message)
     {
         clients.forEach(e -> {
@@ -57,6 +59,9 @@ public class ClientManager {
         });
     }
 
+    /**
+     * Пересылка приватного сообщения адресату
+     */
     public void resendPrivateMessage(Message message)
     {
         for (Client client : clients) {
@@ -95,7 +100,6 @@ public class ClientManager {
             if (clients.remove(client))
             {
                 Account cl = client.getAccount();
-                System.out.println("unregister " + cl);
                 putMessageFromClient(new Message(cl, null, "покинул нас!"));
             }
         }
@@ -103,17 +107,18 @@ public class ClientManager {
 
     public void removeAllUsers()
     {
-        System.out.println("ClientManager.removeAllUser()");
+        boolean isClear;
         synchronized (clients) {
+            isClear = !clients.isEmpty();
             while (!clients.isEmpty())
             {
                 Client client = clients.removeLast();
-                System.out.println("  - remove: " + client);
                 client.close();
             }
         }
         fromClients.clear();
-        System.out.println("ClientManager.removeAllUser() done!");
+        if (isClear)
+            putMessageFromClient(new Message(new Account("ClientManager", "", "", ""), null, "Все клиенты отключены!"));
     }
 
 }

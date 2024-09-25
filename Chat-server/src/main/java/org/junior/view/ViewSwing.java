@@ -5,11 +5,13 @@ import org.junior.view.listeners.*;
 import javax.swing.*;
 import javax.swing.event.EventListenerList;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class ViewSwing extends JFrame implements View {
 
     private static final int WINDOW_WIDTH = 300;
-    private static final int WINDOW_HEIGHT = 200;
+    private static final int WINDOW_HEIGHT = 400;
     private static final int WINDOW_POS_X = 0;
     private static final int WINDOW_POS_Y = 0;
 
@@ -46,8 +48,20 @@ public class ViewSwing extends JFrame implements View {
         listenerList.add(t, l);
     }
 
+    /**
+     * Рассылка уведомлений о закрытии окна пользователем
+     */
+    @Override
+    protected void processWindowEvent(WindowEvent e)
+    {
+        if (e.getID() == WindowEvent.WINDOW_CLOSING)
+        {
+            fireDisconnect(new DisconnectEvent(e.getSource()));
+        }
+        super.processWindowEvent(e);
+    }
 
-        /*
+    /*
        =======================================================================
         Создание интерфейса
        =======================================================================
@@ -83,12 +97,11 @@ public class ViewSwing extends JFrame implements View {
     }
 
 
-        /*===========================================================================
+    /*===========================================================================
      *
      * Реализация подсистемы слушателей от контролов
      *
      ===========================================================================*/
-
 
     private void fireStartServer(StartServerEvent event)
     {
@@ -101,6 +114,13 @@ public class ViewSwing extends JFrame implements View {
     {
         StopServerListener[] listeners = listenerList.getListeners(StopServerListener.class);
         for (int i = listeners.length-1; i>=0; i--)
+            (listeners[i]).actionPerformed(event);
+    }
+
+    private void fireDisconnect(DisconnectEvent event)
+    {
+        DisconnectListener[] listeners = listenerList.getListeners(DisconnectListener.class);
+        for (int i = listeners.length-1; i >= 0; i--)
             (listeners[i]).actionPerformed(event);
     }
 

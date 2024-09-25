@@ -33,9 +33,7 @@ public class Client extends Thread {
                 ClientManager.getInstance().putMessageFromClient(message);
             }
         } catch (Exception ignored) {
-            System.out.println("Client.run(): " + ignored.getMessage());
         }
-        System.out.println("Client.run() done!");
         ClientManager.getInstance().unregisterUser(this);
         closeResource();
     }
@@ -45,40 +43,39 @@ public class Client extends Thread {
      */
     public void sendMessage(Message message)
     {
-        System.out.println("Client.sendMessage(): " + message);
         try {
             writer.writeObject(message);
             writer.flush();
         } catch (Exception e)
         {
-            System.out.println("Client: sendMessage() error: " + e.getMessage());
             ClientManager.getInstance().unregisterUser(this);
             closeResource();
         }
     }
 
-
-
+    /**
+     * Освобождение занятых клиентом ресурсов (закрытие сокета и потоков)
+     */
     public void closeResource()
     {
-        try {
-            if (socket != null && !socket.isClosed())
-                socket.close();
-            if (reader != null)
-                reader.close();
-            if (writer != null)
-                writer.close();
-        } catch (IOException ignored) {}
-        System.out.println("Client.closeResource()");
+        closeSocket();
+        closeWriter();
+        closeReader();
     }
 
+    /**
+     * Остановка клиента и освобождение ресурсов.
+     */
     public void close()
     {
         interrupt();
         closeResource();
-        System.out.println("Client.close()");
     }
 
+    /**
+     * Инициализация клиента: выделение ресурсов и получения данных о пользователе.
+     * @return Данные о пользователе, или null в случае ошибки
+     */
     private Account init()
     {
         try {
@@ -103,11 +100,32 @@ public class Client extends Thread {
         return account;
     }
 
-    public void setAccount(Account account) {
-        this.account = account;
-    }
-
     public Socket getSocket() {
         return socket;
     }
+
+    /*
+        Освобождение ресурсов клиента
+     */
+    private void closeSocket()
+    {
+        try {
+            socket.close();
+        } catch (Exception ignored) {}
+    }
+
+    private void closeReader()
+    {
+        try {
+            reader.close();
+        } catch (Exception ignored) {}
+    }
+
+    private void closeWriter()
+    {
+        try {
+            writer.close();
+        } catch (Exception ignored) {}
+    }
+
 }

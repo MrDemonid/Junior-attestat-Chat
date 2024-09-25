@@ -2,6 +2,7 @@
   <configuration default="false" name="Chat" type="CompoundRunConfigurationType">
     <toRun name="Client" type="Application" />
     <toRun name="Client (1)" type="Application" />
+    <toRun name="Client (2)" type="Application" />
     <toRun name="Server" type="Application" />
     <method v="2" />
   </configuration>

@@ -1,7 +1,6 @@
 package org.junior.controller;
 
 import org.junior.Account;
-import org.junior.ConnectConfig;
 import org.junior.ConnectStatus;
 import org.junior.Message;
 import org.junior.view.View;
@@ -11,9 +10,7 @@ import org.junior.view.listeners.SendMessageListener;
 
 import javax.swing.*;
 import java.io.*;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.util.Scanner;
 
 public class Client {
 
@@ -34,7 +31,8 @@ public class Client {
         view.setAccount(account);
         setListeners();
 
-//        connect(account);
+        // Вешаем обработчик на закрытие программы
+        Runtime.getRuntime().addShutdownHook(new Thread(this::removeListeners));
     }
 
     /**
@@ -58,13 +56,25 @@ public class Client {
      */
     private void connectToServer()
     {
-        if (connectStatus == ConnectStatus.DISCONNECTED)
-        {
-            view.showMessage("Connect...");
-        }
         account = view.getAccount();
-        threadRead = new Thread(this::readerThread);
-        threadRead.start();
+        String ip = account.getIp();
+        String port = account.getPort();
+        if ((port.length() > 3 && port.length() < 6 && port.matches("(\\d*\\.)?\\d+"))
+                && (ip.equalsIgnoreCase("localhost") || ip.matches("^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)(\\.(?!$)|$)){4}$")))
+        {
+            if (connectStatus == ConnectStatus.DISCONNECTED)
+            {
+                view.showMessage("Connect...");
+                threadRead = new Thread(this::readerThread);
+                threadRead.start();
+            } else {
+                // что-то непонятно, сюда не должны попасть из-за отсутствия панели подключения
+                view.showMessage("Error: unexpected error! Please restart program!");
+            }
+        } else {
+            view.showMessage("Bad ip or port format!");
+        }
+
     }
 
     /**
@@ -77,21 +87,10 @@ public class Client {
         System.out.println("Disconnect");
     }
 
-//    public void run()
-//    {
-//        Scanner input = new Scanner(System.in);
-//        try {
-//            while (!socket.isClosed())
-//            {
-//                String message = input.nextLine();
-//                sendMessage(message);
-//            }
-//
-//        } catch (Exception e) {
-//        }
-//        close();
-//    }
-
+    /**
+     * Отправка сообщения на сервер
+     * @param message Сообщение (если начинается с @имя, то это личное, отправляется только адресату)
+     */
     public void sendMessage(String message) {
         if (message != null && !message.isEmpty())
         {
@@ -113,26 +112,23 @@ public class Client {
         }
     }
 
+    /**
+     * Освобождение занятых ресурсов
+     */
     private void close() {
-        try {
-            if (socket != null)
-                socket.close();
-            if (writer != null)
-                writer.close();
-            if (reader != null)
-                reader.close();
-        } catch(IOException e){
-            System.out.println("close() error: " + e.getMessage());
-        }
-        System.out.println("Client: close()");
+        closeSocket();
+        closeReader();
+        closeWriter();
     }
 
+    /**
+     * Поток чтения сообщений от сервера.
+     */
     private void readerThread()
     {
         if (!connect(account))
         {
             switchConnectedStatus(ConnectStatus.DISCONNECTED, "Connect error: server not found!");
-            close();
             return;
         }
         switchConnectedStatus(ConnectStatus.CONNECTED, "Connected!");
@@ -142,13 +138,12 @@ public class Client {
             {
                 Message message = (Message) reader.readObject();
                 if (message == null)
-                    break;
+                    break;                                      // потеря связи с сервером
                 SwingUtilities.invokeLater(() -> {
                     view.showMessage(message.getAuthorName() + ": " + message.getMessage());
                 });
             }
-        } catch (Exception e) {
-        }
+        } catch (Exception ignored) {}
         switchConnectedStatus(ConnectStatus.DISCONNECTED, "Connect closed.");
         close();
     }
@@ -167,22 +162,33 @@ public class Client {
 
     }
 
+    /**
+     * Попытка связаться с сервером
+     * @param account Аккаунт клиента, с данными об IP сервера и его порте.
+     * @return true - если соединение прошло успешно.
+     */
     private boolean connect(Account account)
     {
         try
         {
             int port = Integer.parseInt(account.getPort());
-            socket = new Socket(InetAddress.getLocalHost(), port);
+            String ip = account.getIp();
+            socket = new Socket(ip, port);
             writer = new ObjectOutputStream(socket.getOutputStream());
             reader = new ObjectInputStream(socket.getInputStream());
             sendMessage("connect");
         } catch (Exception e)
         {
+            close();        // закрываем возможно открытые ресурсы
             return false;
         }
         return true;
     }
 
+    /**
+     * Извлекает имя пользователя из личного сообщения
+     * @param message Личное сообщение, начинающееся на @имя ...
+     */
     private String getTargetName(String message)
     {
         StringBuilder name = new StringBuilder();
@@ -196,8 +202,39 @@ public class Client {
         return name.toString();
     }
 
+    /**
+     * Извлекает тело сообщения из личного сообщения
+     */
     private String getBodyMessage(String name, String source)
     {
         return source.replaceFirst("@" + name, "").trim();
     }
+
+    /*
+        Методы освобождения ресурсов.
+        Реализованы по отдельности, поскольку если их сделать в одном блоке try catch,
+        то первое исключение оставит следующие за ним ресурсы без close()
+     */
+    private void closeSocket()
+    {
+        try {
+            socket.close();
+        } catch (Exception ignored) {}
+    }
+
+    private void closeReader()
+    {
+        try {
+            reader.close();
+        } catch (Exception ignored) {}
+    }
+
+    private void closeWriter()
+    {
+        try {
+            writer.close();
+        } catch (Exception ignored) {}
+    }
+
+
 }

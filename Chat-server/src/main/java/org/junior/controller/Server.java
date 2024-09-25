@@ -3,32 +3,21 @@ package org.junior.controller;
 import org.junior.ConnectConfig;
 import org.junior.Message;
 import org.junior.view.View;
-import org.junior.view.listeners.StartServerEvent;
-import org.junior.view.listeners.StartServerListener;
-import org.junior.view.listeners.StopServerEvent;
-import org.junior.view.listeners.StopServerListener;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.junior.view.listeners.*;
 
 public class Server {
 
-    private View view;
-    private List<Client> users;
-
+    private final View view;
     private boolean isWorked;
-
     private Listener connectListener;
     private Thread threadRead;
 
+
     public Server(View view) {
         this.view = view;
-        users = new ArrayList<>();
         isWorked = false;
 
-        // регистрируем слушателей от GUI
-        view.addListener(StartServerListener.class, startServerListener);
-        view.addListener(StopServerListener.class, stopServerListener);
+        setListeners();             // регистрируем слушателей от GUI
     }
 
     /**
@@ -48,13 +37,16 @@ public class Server {
         }
     }
 
+    /**
+     * Приостанавливаем сервер
+     */
     private void stopServer()
     {
         if (isWorked)
         {
+            ClientManager.getInstance().removeAllUsers();
             threadRead.interrupt();
             connectListener.close();
-            ClientManager.getInstance().removeAllUsers();
             isWorked = false;
         }
     }
@@ -68,7 +60,6 @@ public class Server {
             while (!Thread.currentThread().isInterrupted())
             {
                 Message message = ClientManager.getInstance().getMessageFromClient();
-
                 if (message.isPrivate())
                 {
                     ClientManager.getInstance().resendPrivateMessage(message);
@@ -78,12 +69,31 @@ public class Server {
                     view.showMessage(message.getAuthorName() + ": " + message.getMessage());
                 }
             }
-        } catch (InterruptedException e) {
-            System.out.println("Server: thread reader stopped.");
-        }
+        } catch (InterruptedException ignored) {}
+        System.out.println("Server: thread reader stopped.");
     }
 
-        /*===========================================================================
+
+    /*===========================================================================
+     *
+     * Установка/удаление слушателей от View
+     *
+     ===========================================================================*/
+    private void setListeners()
+    {
+        view.addListener(StartServerListener.class, startServerListener);
+        view.addListener(StopServerListener.class, stopServerListener);
+        view.addListener(DisconnectListener.class, event -> removeListeners());
+    }
+
+    private void removeListeners()
+    {
+        view.removeListeners(StartServerListener.class, startServerListener);
+        view.removeListeners(StopServerListener.class, stopServerListener);
+    }
+
+
+    /*===========================================================================
      *
      * Реализация слушателей от контролов View
      *
@@ -118,5 +128,6 @@ public class Server {
             }
         }
     };
+
 
 }

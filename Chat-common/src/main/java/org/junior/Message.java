@@ -16,11 +16,11 @@ public class Message implements Serializable {
 
 
     public String getAuthorName() {
-        return from.getName();
+        return from == null ? "" : from.getName();
     }
 
     public String getAuthorPassword() {
-        return from.getPassword();
+        return from == null ? "" : from.getPassword();
     }
 
     public String getTargetName() {

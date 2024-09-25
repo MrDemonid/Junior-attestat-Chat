@@ -17,8 +17,8 @@ public class ViewSwing extends JFrame implements View {
 
     private static final int WINDOW_WIDTH = 400;
     private static final int WINDOW_HEIGHT = 600;
-    private static int WINDOW_POS_X = 300;
-    private static int WINDOW_POS_Y = 0;
+    private static final int WINDOW_POS_X = 300;
+    private static final int WINDOW_POS_Y = 0;
 
     JPanel controlPanel;
     JTextArea historyPane;
@@ -93,6 +93,9 @@ public class ViewSwing extends JFrame implements View {
 
     }
 
+    /**
+     * Меняет статус окна клиента (скрывая/показывая хидер)
+     */
     private void switchConnectStatus()
     {
         if (connectStatus == ConnectStatus.CONNECTED)
@@ -110,7 +113,6 @@ public class ViewSwing extends JFrame implements View {
         setTitle("Client");
         setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         setLocation(WINDOW_POS_X, WINDOW_POS_Y);
-        WINDOW_POS_X += WINDOW_WIDTH;
         createPanels();
         setListeners();
     }
@@ -123,6 +125,7 @@ public class ViewSwing extends JFrame implements View {
         btnLogin.addActionListener(e -> fireLogin(new LoginEvent(e.getSource())));
 
         btnSend.addActionListener(e -> {
+            showMessage(inpMessage.getText());
             fireSendMessage(new SendMessageEvent(e.getSource(), inpMessage.getText()));
             inpMessage.setText("");
         });
@@ -132,6 +135,7 @@ public class ViewSwing extends JFrame implements View {
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER)
                 {
+                    showMessage(inpMessage.getText());
                     fireSendMessage(new SendMessageEvent(e.getSource(), inpMessage.getText()));
                     inpMessage.setText("");
                 }
@@ -139,6 +143,9 @@ public class ViewSwing extends JFrame implements View {
         });
     }
 
+    /**
+     * Удаление всех слушателей контролов
+     */
     private void removeListeners()
     {
         ActionListener[] list = btnLogin.getActionListeners();

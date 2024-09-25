@@ -1,7 +1,5 @@
 package org.junior.controller;
 
-import org.junior.Account;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -41,12 +39,8 @@ public class Listener extends Thread {
         try {
             interrupt();
             closeSocket();
-            if (this.isAlive())
-                join();
         } catch (Exception ignored) {
-            System.out.println("Listener.close(): " + ignored.getMessage());
         }
-        System.out.println("Listener.close()");
     }
 
     private void closeSocket()
