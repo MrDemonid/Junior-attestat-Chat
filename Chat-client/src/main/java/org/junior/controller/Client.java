@@ -9,6 +9,7 @@ import org.junior.view.listeners.DisconnectListener;
 import org.junior.view.listeners.LoginListener;
 import org.junior.view.listeners.SendMessageListener;
 
+import javax.swing.*;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -26,13 +27,14 @@ public class Client {
     ConnectStatus connectStatus;
 
 
-    public Client(Account account, View view) {
-        this.account = account;
+    public Client(View view) {
+        this.account = new Account("Anon", "12345", "localhost", "4310");
+        this.view = view;
         connectStatus = ConnectStatus.DISCONNECTED;
         view.setAccount(account);
         setListeners();
 
-        connect(account);
+//        connect(account);
     }
 
     /**
@@ -41,8 +43,14 @@ public class Client {
     private void setListeners()
     {
         view.addListener(LoginListener.class, event -> connectToServer());
-//        view.addListener(SendMessageListener.class, event -> sendMessage(event.getMessage()));
+        view.addListener(SendMessageListener.class, event -> sendMessage(event.getMessage()));
         view.addListener(DisconnectListener.class, event -> disconnectFromUser());
+    }
+
+    private void removeListeners()
+    {
+        view.removeListeners(LoginListener.class, event -> connectToServer());
+        view.removeListeners(DisconnectListener.class, event -> disconnectFromUser());
     }
 
     /**
@@ -50,6 +58,13 @@ public class Client {
      */
     private void connectToServer()
     {
+        if (connectStatus == ConnectStatus.DISCONNECTED)
+        {
+            view.showMessage("Connect...");
+        }
+        account = view.getAccount();
+        threadRead = new Thread(this::readerThread);
+        threadRead.start();
     }
 
     /**
@@ -57,24 +72,27 @@ public class Client {
      */
     private void disconnectFromUser()
     {
-    }
-
-    public void run()
-    {
-        Scanner input = new Scanner(System.in);
-        try {
-            while (!socket.isClosed())
-            {
-                String message = input.nextLine();
-                sendMessage(message);
-            }
-
-        } catch (Exception e) {
-        }
         close();
+        view.setConnectStatus(connectStatus);
+        System.out.println("Disconnect");
     }
 
-    public void sendMessage(String message) throws IOException {
+//    public void run()
+//    {
+//        Scanner input = new Scanner(System.in);
+//        try {
+//            while (!socket.isClosed())
+//            {
+//                String message = input.nextLine();
+//                sendMessage(message);
+//            }
+//
+//        } catch (Exception e) {
+//        }
+//        close();
+//    }
+
+    public void sendMessage(String message) {
         if (message != null && !message.isEmpty())
         {
             String to = null;
@@ -83,31 +101,17 @@ public class Client {
                 // извлекаем имя адресата
                 to = getTargetName(message);
                 message = getBodyMessage(to, message);
-                System.out.println("Personal. to: " + to + ", message: '" + message + "'");
             }
             Message msg = new Message(account, to, message);
-            System.out.println("Send: " + msg);
-            writer.writeObject(msg);
-            writer.flush();
+            try {
+                writer.writeObject(msg);
+                writer.flush();
+            } catch (Exception e)
+            {
+                close();
+            }
         }
     }
-
-
-    private void connect(Account account)
-    {
-        try {
-            socket = new Socket(InetAddress.getLocalHost(), ConnectConfig.getPort());
-            writer = new ObjectOutputStream(socket.getOutputStream());
-            reader = new ObjectInputStream(socket.getInputStream());
-            sendMessage("connect");
-            threadRead = new Thread(this::readerThread);
-            threadRead.start();
-        } catch (IOException e) {
-            System.out.println("Client: server not found! Connect refused.");
-            close();
-        }
-    }
-
 
     private void close() {
         try {
@@ -118,26 +122,65 @@ public class Client {
             if (reader != null)
                 reader.close();
         } catch(IOException e){
-            System.out.println("close(): " + e.getMessage());
+            System.out.println("close() error: " + e.getMessage());
         }
         System.out.println("Client: close()");
     }
 
     private void readerThread()
     {
+        if (!connect(account))
+        {
+            switchConnectedStatus(ConnectStatus.DISCONNECTED, "Connect error: server not found!");
+            close();
+            return;
+        }
+        switchConnectedStatus(ConnectStatus.CONNECTED, "Connected!");
         try
         {
             while (!Thread.currentThread().isInterrupted() && !socket.isClosed())
             {
                 Message message = (Message) reader.readObject();
                 if (message == null)
-                    continue;
-                System.out.println("from server: " + message);
+                    break;
+                SwingUtilities.invokeLater(() -> {
+                    view.showMessage(message.getAuthorName() + ": " + message.getMessage());
+                });
             }
         } catch (Exception e) {
         }
-        System.out.println("Client: close read thread!");
+        switchConnectedStatus(ConnectStatus.DISCONNECTED, "Connect closed.");
         close();
+    }
+
+    /**
+     * Переключение статуса клиента. Версия для отдельного от Swing потока.
+     * @param message Сообщение пользователю.
+     */
+    private void switchConnectedStatus(ConnectStatus newStatus, String message)
+    {
+        connectStatus = newStatus;
+        SwingUtilities.invokeLater(() -> {
+            view.setConnectStatus(connectStatus);
+            view.showMessage(message);
+        });
+
+    }
+
+    private boolean connect(Account account)
+    {
+        try
+        {
+            int port = Integer.parseInt(account.getPort());
+            socket = new Socket(InetAddress.getLocalHost(), port);
+            writer = new ObjectOutputStream(socket.getOutputStream());
+            reader = new ObjectInputStream(socket.getInputStream());
+            sendMessage("connect");
+        } catch (Exception e)
+        {
+            return false;
+        }
+        return true;
     }
 
     private String getTargetName(String message)

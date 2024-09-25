@@ -11,7 +11,7 @@ public class Main {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                new Client(new Account("Ivan", "12345", "127.0.0.1", "4310"), new ViewSwing());
+                new Client(new ViewSwing());
             }
         });
 

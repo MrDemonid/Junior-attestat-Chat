@@ -7,6 +7,7 @@ import org.junior.view.listeners.*;
 import javax.swing.*;
 import javax.swing.event.EventListenerList;
 import java.awt.*;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
@@ -85,7 +86,11 @@ public class ViewSwing extends JFrame implements View {
     {
         super.processWindowEvent(e);
         if (e.getID() == WindowEvent.WINDOW_CLOSING)
+        {
             fireDisconnect(new DisconnectEvent(e.getSource()));
+            removeListeners();
+        }
+
     }
 
     private void switchConnectStatus()
@@ -101,6 +106,7 @@ public class ViewSwing extends JFrame implements View {
 
     private void init()
     {
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         setTitle("Client");
         setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         setLocation(WINDOW_POS_X, WINDOW_POS_Y);
@@ -133,6 +139,23 @@ public class ViewSwing extends JFrame implements View {
         });
     }
 
+    private void removeListeners()
+    {
+        ActionListener[] list = btnLogin.getActionListeners();
+        for (ActionListener listener : list) {
+            btnLogin.removeActionListener(listener);
+        }
+
+        list = btnSend.getActionListeners();
+        for (ActionListener listener: list) {
+            btnSend.removeActionListener(listener);
+        }
+
+        list = inpMessage.getActionListeners();
+        for (ActionListener listener : list) {
+            inpMessage.removeActionListener(listener);
+        }
+    }
 
     /*===========================================================================
      *
